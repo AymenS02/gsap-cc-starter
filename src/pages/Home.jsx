@@ -42,6 +42,11 @@ const animations = [
     description: "Learn how to animate text with GSAP.",
     path: "/gsaptext",
   },
+  {
+    title: "GSAP Sandbox",
+    description: "A sandbox to experiment with GSAP animations.", 
+    path: "/gsapsandbox",
+  }
 ];
 
 const Home = () => {
