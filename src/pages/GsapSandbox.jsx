@@ -552,6 +552,26 @@ const GsapSandbox = () => {
     };
   }, [hasStarted]);
 
+  const buttonRef = useRef(null);
+
+useLayoutEffect(() => {
+  const ctx = gsap.context(() => {
+    gsap.fromTo(
+      buttonRef.current,
+      {
+        opacity: 0,
+      },
+      {
+        opacity: 1,
+        duration: 0.6,
+        ease: "power2.out",
+      }
+    );
+  });
+
+  return () => ctx.revert();
+}, []);
+
   return (
     <div
       ref={containerRef}
@@ -608,6 +628,14 @@ const GsapSandbox = () => {
             [transform-style:preserve-3d]
           "
         >
+
+        <button
+          ref={buttonRef}
+          className="absolute left-1/2 top-1/2 h-[100px] w-[100px] -translate-x-1/2 -translate-y-1/2 bg-red-800 transition-all duration-500 hover:scale-105"
+        >
+          Start
+        </button>
+
           {cubes.map(
             (
               cubeData,

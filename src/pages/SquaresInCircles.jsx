@@ -7,438 +7,864 @@ import {
 } from "react";
 
 import gsap from "gsap";
-import { Flip } from "gsap/Flip";
 
-// Register the Flip plugin once so GSAP can use it.
-gsap.registerPlugin(Flip);
+/* =========================================
+   CUBE DATA
+========================================= */
 
-/**
- * Each square gets its own Tailwind background color.
- * Since the colors are tied to the box object,
- * a square keeps the same color even after shuffling.
- */
-const colors = [
-  "bg-red-500",
-  "bg-orange-500",
-  "bg-yellow-400",
-  "bg-green-500",
-  "bg-emerald-500",
-  "bg-cyan-500",
-  "bg-blue-500",
-  "bg-indigo-500",
-  "bg-purple-500",
-  "bg-pink-500",
+const cubes = [
+  {
+    title: "Frontend",
+    description:
+      "React, Next.js and modern interfaces.",
+    number: "01",
+    color: "bg-blue-500",
+  },
+  {
+    title: "Backend",
+    description:
+      "APIs, databases and server logic.",
+    number: "02",
+    color: "bg-green-500",
+  },
+  {
+    title: "GSAP",
+    description:
+      "Interactive animations and motion.",
+    number: "03",
+    color: "bg-purple-500",
+  },
+  {
+    title: "Design",
+    description:
+      "Responsive and accessible UI systems.",
+    number: "04",
+    color: "bg-orange-500",
+  },
+  {
+    title: "React",
+    description:
+      "Reusable component architecture.",
+    number: "05",
+    color: "bg-red-500",
+  },
+  {
+    title: "Next.js",
+    description:
+      "Full-stack React applications.",
+    number: "06",
+    color: "bg-cyan-500",
+  },
+  {
+    title: "Node",
+    description:
+      "Scalable JavaScript backends.",
+    number: "07",
+    color: "bg-emerald-500",
+  },
+  {
+    title: "MongoDB",
+    description:
+      "Flexible application data.",
+    number: "08",
+    color: "bg-yellow-500",
+  },
+  {
+    title: "TypeScript",
+    description:
+      "Safer application development.",
+    number: "09",
+    color: "bg-indigo-500",
+  },
+  {
+    title: "Tailwind",
+    description:
+      "Fast and consistent styling.",
+    number: "10",
+    color: "bg-pink-500",
+  },
 ];
 
-/**
- * We always want exactly 10 possible positions
- * around the circle.
- */
-const TOTAL_BOXES = 10;
+/* =========================================
+   SETTINGS
+========================================= */
 
-/**
- * Controls how far away each square sits
- * from the center of the circle.
- */
-const RADIUS = 180;
+const TOTAL_CUBES = cubes.length;
 
-const SquaresInCircles = () => {
-  /**
-   * boxes stores the actual squares.
-   *
-   * Example:
-   *
-   * [
-   *   {
-   *     id: 1,
-   *     color: "bg-red-500"
-   *   },
-   *   {
-   *     id: 2,
-   *     color: "bg-orange-500"
-   *   }
-   * ]
-   *
-   * The ORDER of this array determines
-   * where each square appears on the circle.
+const CUBE_SIZE = 140;
+
+const HALF_CUBE =
+  CUBE_SIZE / 2;
+
+const RADIUS = 330;
+
+const PARALLAX_STRENGTH = 30;
+
+/* =========================================
+   COMPONENT
+========================================= */
+
+const GsapSandbox = () => {
+  const containerRef =
+    useRef(null);
+
+  /*
+   * Controls whether the cubes
+   * have been generated yet.
    */
-  const [boxes, setBoxes] = useState([]);
+  const [
+    hasStarted,
+    setHasStarted,
+  ] = useState(false);
 
-  /**
-   * Controls whether the Shuffle button
-   * is visible in the center.
+  /*
+   * OUTER wrappers:
+   *
+   * Used for circle positioning
+   * and shuffle movement.
    */
-  const [showShuffle, setShowShuffle] =
-    useState(false);
+  const positionRefs =
+    useRef([]);
 
-  /**
-   * Stores references to the INNER colored squares.
+  /*
+   * INNER cubes:
    *
-   * Important:
-   *
-   * Flip animates the OUTER wrapper.
-   *
-   * The spawn animation animates the INNER square.
-   *
-   * Keeping them separate prevents both animations
-   * from fighting over the same CSS transform.
-   *
-   * Example:
-   *
-   * boxRefs.current[1]
-   *
-   * points to square #1.
+   * Used for the 3D flip
+   * and mouse parallax.
    */
-  const boxRefs = useRef({});
+  const cubeRefs =
+    useRef([]);
 
-  /**
-   * Runs when "Add Squares" is clicked.
-   *
-   * It:
-   *
-   * 1. Clears any old squares.
-   * 2. Hides the Shuffle button.
-   * 3. Adds 10 squares one-by-one.
-   * 4. Shows the Shuffle button after they finish.
+  /*
+   * Current slot occupied
+   * by each cube.
    */
-  const spray = () => {
-    setBoxes([]);
-    setShowShuffle(false);
+  const slotOrderRef =
+    useRef(
+      Array.from(
+        {
+          length:
+            TOTAL_CUBES,
+        },
+        (_, index) => index
+      )
+    );
 
-    /**
-     * Spawn one square every 100ms.
-     *
-     * i = 0 -> immediately
-     * i = 1 -> 100ms
-     * i = 2 -> 200ms
-     * ...
+  /* =========================================
+     GET CIRCLE POSITION
+  ========================================= */
+
+  const getCirclePosition = (
+    slotIndex
+  ) => {
+    /*
+     * Start at the top of the circle.
+     */
+    const angle =
+      (slotIndex /
+        TOTAL_CUBES) *
+        Math.PI *
+        2 -
+      Math.PI / 2;
+
+    return {
+      x:
+        Math.cos(angle) *
+        RADIUS,
+
+      y:
+        Math.sin(angle) *
+        RADIUS,
+    };
+  };
+
+  /* =========================================
+     ADD CUBES
+  ========================================= */
+
+  const handleAddCubes = () => {
+    setHasStarted(true);
+  };
+
+  /* =========================================
+     SHUFFLE
+  ========================================= */
+
+  const shuffleCubes = () => {
+    /*
+     * Copy the current slots.
+     */
+    const newOrder = [
+      ...slotOrderRef.current,
+    ];
+
+    /*
+     * Fisher-Yates shuffle.
      */
     for (
-      let i = 0;
-      i < TOTAL_BOXES;
-      i++
+      let i =
+        newOrder.length - 1;
+      i > 0;
+      i--
     ) {
-      setTimeout(() => {
-        addBox(i);
-      }, i * 100);
+      const randomIndex =
+        Math.floor(
+          Math.random() *
+            (i + 1)
+        );
+
+      [
+        newOrder[i],
+        newOrder[
+          randomIndex
+        ],
+      ] = [
+        newOrder[
+          randomIndex
+        ],
+        newOrder[i],
+      ];
     }
 
-    /**
-     * Wait until the spawning is mostly finished,
-     * then reveal the Shuffle button.
+    /*
+     * Save new assignments.
      */
-    setTimeout(() => {
-      setShowShuffle(true);
-    }, 1300);
-  };
+    slotOrderRef.current =
+      newOrder;
 
-  /**
-   * Adds one new square to React state.
-   *
-   * index determines:
-   *
-   * - its ID
-   * - its color
-   */
-  const addBox = (index) => {
-    setBoxes(
-      (previousBoxes) => [
-        ...previousBoxes,
-        {
-          id: index + 1,
-          color: colors[index],
-        },
-      ]
-    );
-  };
-
-  /**
-   * Shuffles the square order.
-   *
-   * This is where GSAP Flip comes in.
-   */
-  const shuffle = () => {
-    /**
-     * STEP 1:
-     *
-     * Flip takes a snapshot of where
-     * every .flip-box currently is.
-     *
-     * Think:
-     *
-     * "Square 1 is here."
-     * "Square 2 is here."
-     * "Square 3 is here."
+    /*
+     * Move every EXISTING cube
+     * directly from its current
+     * position to its new slot.
      */
-    const state =
-      Flip.getState(".flip-box");
+    positionRefs.current.forEach(
+      (
+        wrapper,
+        cubeIndex
+      ) => {
+        if (!wrapper) return;
 
-    /**
-     * STEP 2:
-     *
-     * Shuffle the React array.
-     *
-     * Since each square's POSITION depends
-     * on its index in the array,
-     * changing the array order changes
-     * where each square belongs.
-     */
-    setBoxes(
-      (previousBoxes) => {
-        /**
-         * Copy the array first.
-         *
-         * We do NOT want to mutate
-         * React state directly.
-         */
-        const shuffled = [
-          ...previousBoxes,
-        ];
+        const slot =
+          newOrder[
+            cubeIndex
+          ];
 
-        /**
-         * Fisher-Yates shuffle.
-         *
-         * This gives us a proper random shuffle.
-         */
-        for (
-          let i =
-            shuffled.length - 1;
-          i > 0;
-          i--
-        ) {
-          const j = Math.floor(
-            Math.random() *
-              (i + 1)
+        const { x, y } =
+          getCirclePosition(
+            slot
           );
 
-          /**
-           * Swap shuffled[i]
-           * and shuffled[j].
-           */
-          [
-            shuffled[i],
-            shuffled[j],
-          ] = [
-            shuffled[j],
-            shuffled[i],
-          ];
-        }
+        gsap.to(wrapper, {
+          x,
+          y,
 
-        return shuffled;
+          duration: 1,
+
+          ease:
+            "power3.inOut",
+        });
       }
     );
-
-    /**
-     * STEP 3:
-     *
-     * React state updates asynchronously.
-     *
-     * requestAnimationFrame waits until
-     * React has had a chance to render
-     * the new layout.
-     */
-    requestAnimationFrame(() => {
-      /**
-       * STEP 4:
-       *
-       * Flip compares:
-       *
-       * OLD positions
-       *
-       * vs
-       *
-       * NEW positions
-       *
-       * and animates between them.
-       */
-      Flip.from(state, {
-        duration: 0.8,
-        ease: "power2.inOut",
-      });
-    });
   };
 
-  /**
-   * Runs every time the boxes array changes.
-   *
-   * We use this only for the SPAWN animation.
-   *
-   * Flip does not handle spawning here.
-   */
+  /* =========================================
+     INITIAL CUBE ANIMATION +
+     CUBE INTERACTIONS
+  ========================================= */
+
   useLayoutEffect(() => {
-    /**
-     * If there are no boxes,
-     * there is nothing to animate.
-     */
-    if (boxes.length === 0)
-      return;
+    if (!hasStarted) return;
 
-    /**
-     * Get the newest box.
-     *
-     * Since addBox() always adds to the end,
-     * the last array item is the newest square.
-     */
-    const newestBox =
-      boxes[
-        boxes.length - 1
-      ];
+    const ctx =
+      gsap.context(() => {
+        /* =====================================
+           STARTING ANIMATION
 
-    /**
-     * Grab the actual DOM element
-     * for that square.
-     */
-    const element =
-      boxRefs.current[
-        newestBox.id
-      ];
+           All cubes begin in the center,
+           then spread outward into the circle.
+        ===================================== */
 
-    if (!element) return;
+        positionRefs.current.forEach(
+          (wrapper) => {
+            if (!wrapper) return;
 
-    /**
-     * Animate the INNER square only.
-     *
-     * This controls:
-     *
-     * - scale
-     * - opacity
-     *
-     * It does NOT control circle position.
-     */
-    gsap.fromTo(
-      element,
-      {
-        scale: 0,
-        opacity: 0,
-      },
-      {
-        scale: 1,
-        opacity: 1,
-        duration: 0.4,
-        ease: "back.out(1.7)",
-      }
-    );
-  }, [boxes]);
+            gsap.set(wrapper, {
+              x: 0,
+              y: 0,
+              scale: 0,
+              opacity: 0,
+            });
+          }
+        );
+
+        /*
+         * Animate each cube from
+         * the center to its circle slot.
+         */
+        positionRefs.current.forEach(
+          (
+            wrapper,
+            index
+          ) => {
+            if (!wrapper) return;
+
+            const { x, y } =
+              getCirclePosition(
+                index
+              );
+
+            gsap.to(wrapper, {
+              x,
+              y,
+
+              scale: 1,
+
+              opacity: 1,
+
+              duration: 1,
+
+              delay:
+                index * 0.06,
+
+              ease:
+                "power3.out",
+            });
+          }
+        );
+
+        /* =====================================
+           SET UP CUBE INTERACTIONS
+        ===================================== */
+
+        cubeRefs.current.forEach(
+          (cube) => {
+            if (!cube) return;
+
+            const cubeDepth =
+              cube.offsetWidth;
+
+            const rotation = {
+              flip: 0,
+              tiltX: 0,
+              tiltY: 0,
+            };
+
+            let isFlipped =
+              false;
+
+            /* ================================
+               RENDER CUBE ROTATION
+            ================================ */
+
+            function render() {
+              gsap.set(cube, {
+                rotateX:
+                  rotation.flip +
+                  rotation.tiltX,
+
+                rotateY:
+                  rotation.tiltY,
+
+                z:
+                  -cubeDepth /
+                  2,
+              });
+            }
+
+            render();
+
+            /* ================================
+               MOUSE ENTER
+            ================================ */
+
+            const handleMouseEnter =
+              () => {
+                isFlipped =
+                  false;
+
+                gsap.to(
+                  rotation,
+                  {
+                    flip: 180,
+
+                    duration:
+                      0.5,
+
+                    ease:
+                      "power2.inOut",
+
+                    overwrite:
+                      "flip",
+
+                    onUpdate:
+                      render,
+
+                    onComplete:
+                      () => {
+                        isFlipped =
+                          true;
+                      },
+                  }
+                );
+              };
+
+            /* ================================
+               MOUSE LEAVE
+            ================================ */
+
+            const handleMouseLeave =
+              () => {
+                isFlipped =
+                  false;
+
+                gsap.to(
+                  rotation,
+                  {
+                    flip: 0,
+
+                    tiltX: 0,
+
+                    tiltY: 0,
+
+                    duration:
+                      0.5,
+
+                    ease:
+                      "power2.inOut",
+
+                    overwrite:
+                      true,
+
+                    onUpdate:
+                      render,
+                  }
+                );
+              };
+
+            /* ================================
+               MOUSE MOVE
+            ================================ */
+
+            const handleMouseMove =
+              (event) => {
+                if (
+                  !isFlipped
+                )
+                  return;
+
+                const bounds =
+                  cube.getBoundingClientRect();
+
+                const centerX =
+                  bounds.left +
+                  bounds.width /
+                    2;
+
+                const centerY =
+                  bounds.top +
+                  bounds.height /
+                    2;
+
+                const offsetX =
+                  (event.clientX -
+                    centerX) /
+                  bounds.width;
+
+                const offsetY =
+                  (event.clientY -
+                    centerY) /
+                  bounds.height;
+
+                gsap.to(
+                  rotation,
+                  {
+                    tiltX:
+                      -offsetY *
+                      PARALLAX_STRENGTH,
+
+                    tiltY:
+                      offsetX *
+                      PARALLAX_STRENGTH,
+
+                    duration:
+                      0.3,
+
+                    ease:
+                      "power2.out",
+
+                    overwrite:
+                      "tilt",
+
+                    onUpdate:
+                      render,
+                  }
+                );
+              };
+
+            cube.addEventListener(
+              "mouseenter",
+              handleMouseEnter
+            );
+
+            cube.addEventListener(
+              "mouseleave",
+              handleMouseLeave
+            );
+
+            cube.addEventListener(
+              "mousemove",
+              handleMouseMove
+            );
+
+            cube._cleanup =
+              () => {
+                cube.removeEventListener(
+                  "mouseenter",
+                  handleMouseEnter
+                );
+
+                cube.removeEventListener(
+                  "mouseleave",
+                  handleMouseLeave
+                );
+
+                cube.removeEventListener(
+                  "mousemove",
+                  handleMouseMove
+                );
+              };
+          }
+        );
+      }, containerRef);
+
+    return () => {
+      cubeRefs.current.forEach(
+        (cube) => {
+          if (
+            cube?._cleanup
+          ) {
+            cube._cleanup();
+          }
+        }
+      );
+
+      ctx.revert();
+    };
+  }, [hasStarted]);
 
   return (
-    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-black">
-      {/* =========================
-          ADD SQUARES BUTTON
-      ========================== */}
+    <div
+      ref={containerRef}
+      className="
+        relative
+        h-screen
+        w-screen
+        overflow-hidden
+        bg-neutral-950
+        [perspective:2000px]
+      "
+    >
+      {/* =====================================
+          BUTTON
+      ===================================== */}
 
       <button
-        onClick={spray}
-        className="absolute top-10 z-20 rounded-xl bg-white px-6 py-3 font-semibold text-black transition hover:scale-105"
+        onClick={
+          hasStarted
+            ? shuffleCubes
+            : handleAddCubes
+        }
+        className="
+          absolute
+          left-1/2
+          top-8
+          z-50
+          -translate-x-1/2
+          rounded-full
+          bg-white
+          px-6
+          py-3
+          font-semibold
+          text-black
+          transition
+          hover:scale-105
+        "
       >
-        Add Squares
+        {hasStarted
+          ? "Shuffle"
+          : "Add Cubes"}
       </button>
 
-      {/* =========================
-          CIRCLE CONTAINER
-      ========================== */}
+      {/* =====================================
+          CUBES
+      ===================================== */}
 
-      <div className="relative h-[500px] w-[500px]">
-        {boxes.map(
-          (box, index) => {
-            /**
-             * Each index gets one fixed position
-             * around the circle.
-             *
-             * Since TOTAL_BOXES is always 10,
-             * the spacing never changes.
-             */
-            const angle =
-              (index /
-                TOTAL_BOXES) *
-              Math.PI *
-              2;
-
-            /**
-             * Convert angle into x/y coordinates.
-             *
-             * Math.cos() determines horizontal position.
-             * Math.sin() determines vertical position.
-             */
-            const x =
-              Math.cos(angle) *
-              RADIUS;
-
-            const y =
-              Math.sin(angle) *
-              RADIUS;
-
-            return (
-              /**
-               * OUTER WRAPPER
+      {hasStarted && (
+        <div
+          className="
+            absolute
+            left-1/2
+            top-1/2
+            [transform-style:preserve-3d]
+          "
+        >
+          {cubes.map(
+            (
+              cubeData,
+              index
+            ) => (
+              /*
+               * =============================
+               * POSITION WRAPPER
                *
-               * This is the element Flip tracks.
-               *
-               * Its only job is POSITION.
-               *
-               * Important:
-               * Flip should animate this element,
-               * NOT the inner colored square.
+               * Shuffle controls this.
+               * =============================
                */
               <div
-                key={box.id}
-                data-flip-id={`box-${box.id}`}
-                className="flip-box absolute"
+                key={
+                  cubeData.number
+                }
+                ref={(
+                  element
+                ) => {
+                  positionRefs.current[
+                    index
+                  ] = element;
+                }}
+                className="
+                  absolute
+                  left-0
+                  top-0
+                "
                 style={{
-                  left: `calc(50% + ${x}px)`,
-                  top: `calc(50% + ${y}px)`,
-                  marginLeft: "-35px",
-                  marginTop: "-35px",
+                  width:
+                    CUBE_SIZE,
+
+                  height:
+                    CUBE_SIZE,
+
+                  marginLeft:
+                    -HALF_CUBE,
+
+                  marginTop:
+                    -HALF_CUBE,
                 }}
               >
-                {/**
-                 * INNER SQUARE
-                 *
-                 * This is the visual square.
-                 *
-                 * It gets:
-                 *
-                 * - color
-                 * - size
-                 * - rounded corners
-                 * - number
-                 *
-                 * GSAP's spawn animation
-                 * controls its scale and opacity.
-                 */}
+                {/* ==========================
+                    ACTUAL CUBE
+                ========================== */}
+
                 <div
                   ref={(
                     element
                   ) => {
-                    boxRefs.current[
-                      box.id
+                    cubeRefs.current[
+                      index
                     ] = element;
                   }}
-                  className={`flex h-[70px] w-[70px] items-center justify-center rounded-xl font-bold text-white ${box.color}`}
+                  className="
+                    relative
+                    h-full
+                    w-full
+                    cursor-pointer
+                    [transform-style:preserve-3d]
+                  "
                 >
-                  {box.id}
+                  {/* FRONT */}
+
+                  <div
+                    className={`
+                      absolute
+                      inset-0
+                      flex
+                      flex-col
+                      justify-between
+                      border
+                      border-white/30
+                      p-4
+                      text-white
+                      ${cubeData.color}
+                    `}
+                    style={{
+                      transform: `translateZ(${HALF_CUBE}px)`,
+                    }}
+                  >
+                    <span className="text-xs opacity-60">
+                      {
+                        cubeData.number
+                      }
+                    </span>
+
+                    <div>
+                      <h2 className="text-lg font-bold">
+                        {
+                          cubeData.title
+                        }
+                      </h2>
+
+                      <p className="mt-2 text-xs leading-relaxed text-white/70">
+                        {
+                          cubeData.description
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* BACK */}
+
+                  <div
+                    className={`
+                      absolute
+                      inset-0
+                      flex
+                      flex-col
+                      justify-between
+                      border
+                      border-white/30
+                      p-4
+                      text-white
+                      ${cubeData.color}
+                    `}
+                    style={{
+                      transform: `
+                        rotateY(180deg)
+                        translateZ(${HALF_CUBE}px)
+                        rotate(180deg)
+                      `,
+                    }}
+                  >
+                    <span className="text-xs opacity-60">
+                      {
+                        cubeData.number
+                      }
+                    </span>
+
+                    <div>
+                      <h2 className="text-lg font-bold">
+                        {
+                          cubeData.title
+                        }
+                      </h2>
+
+                      <p className="mt-2 text-xs leading-relaxed text-white/70">
+                        {
+                          cubeData.description
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* RIGHT */}
+
+                  <div
+                    className="
+                      absolute
+                      inset-0
+                      flex
+                      items-center
+                      justify-center
+                      border
+                      border-white/20
+                      bg-neutral-900
+                      text-white/40
+                    "
+                    style={{
+                      transform: `
+                        rotateY(90deg)
+                        translateZ(${HALF_CUBE}px)
+                      `,
+                    }}
+                  >
+                    {
+                      cubeData.number
+                    }
+                  </div>
+
+                  {/* LEFT */}
+
+                  <div
+                    className="
+                      absolute
+                      inset-0
+                      flex
+                      items-center
+                      justify-center
+                      border
+                      border-white/20
+                      bg-neutral-900
+                      text-white/40
+                    "
+                    style={{
+                      transform: `
+                        rotateY(-90deg)
+                        translateZ(${HALF_CUBE}px)
+                      `,
+                    }}
+                  >
+                    {
+                      cubeData.number
+                    }
+                  </div>
+
+                  {/* TOP */}
+
+                  <div
+                    className="
+                      absolute
+                      inset-0
+                      flex
+                      items-center
+                      justify-center
+                      border
+                      border-white/20
+                      bg-neutral-800
+                      text-white/40
+                    "
+                    style={{
+                      transform: `
+                        rotateX(90deg)
+                        translateZ(${HALF_CUBE}px)
+                      `,
+                    }}
+                  >
+                    {
+                      cubeData.title
+                    }
+                  </div>
+
+                  {/* BOTTOM */}
+
+                  <div
+                    className="
+                      absolute
+                      inset-0
+                      flex
+                      items-center
+                      justify-center
+                      border
+                      border-white/20
+                      bg-neutral-950
+                      text-white/40
+                    "
+                    style={{
+                      transform: `
+                        rotateX(-90deg)
+                        translateZ(${HALF_CUBE}px)
+                      `,
+                    }}
+                  >
+                    {
+                      cubeData.title
+                    }
+                  </div>
                 </div>
               </div>
-            );
-          }
-        )}
-
-        {/* =========================
-            SHUFFLE BUTTON
-        ========================== */}
-
-        <button
-          onClick={shuffle}
-          className={`absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-5 py-4 font-semibold text-black transition-all duration-500 ${
-            showShuffle
-              ? "scale-100 opacity-100"
-              : "pointer-events-none scale-0 opacity-0"
-          }`}
-        >
-          Shuffle
-        </button>
-      </div>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-export default SquaresInCircles;
+export default GsapSandbox;
