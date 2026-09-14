@@ -7,6 +7,7 @@ import GsapTimeline from "./GsapTimeline";
 import GsapScrollTrigger from "./GsapScrollTrigger";
 import GsapText from "./GsapText";
 import GsapSandbox from "./GsapSandbox";
+import GsapItemOrder from "./GsapItemOrder";
 
 export {
   GsapTo,
@@ -18,4 +19,5 @@ export {
   GsapStagger,
   GsapText,
   GsapSandbox,
+  GsapItemOrder
 };

@@ -46,6 +46,11 @@ const animations = [
     title: "GSAP Sandbox",
     description: "A sandbox to experiment with GSAP animations.", 
     path: "/gsapsandbox",
+  },
+  {
+    title: "GSAP Item Order",
+    description: "Learn how to control the order of items in a GSAP animation.", 
+    path: "/gsapitemorder",
   }
 ];
 

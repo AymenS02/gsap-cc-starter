@@ -9,6 +9,7 @@ import {
   GsapTimeline,
   GsapTo,
   Home,
+  GsapItemOrder,
   GsapSandbox
 } from "./pages";
 
@@ -26,6 +27,7 @@ const App = () => {
           <Route path="/gsaptext" element={<GsapText />} />
           <Route path="/" element={<Home />} />
           <Route path="/gsapsandbox" element={<GsapSandbox />} />
+          <Route path="/gsapitemorder" element={<GsapItemOrder />} />
         </Routes>
       </Router>
     </div>
