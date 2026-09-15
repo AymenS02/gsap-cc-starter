@@ -1,63 +1,231 @@
-import { useGSAP } from "@gsap/react";
+// This is a copy with gsap animation added
+import { useState, useLayoutEffect, useRef } from "react";
+
+import PropTypes from "prop-types";
+
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+
 import gsap from "gsap";
+import { Flip } from "gsap/Flip";
 
-const GsapText = () => {
-  // TODO: Implement gsap text animation
-  useGSAP(() => {
-      gsap.to("#text", {
-        ease: 'power1,inOut',
-        opacity: 1,
-        y: 0,
-      })
+import { menuItems } from "../data/menuItems.js";
 
-      gsap.fromTo(".para", {
-        opacity: 0,
-        y: 20,
-      }, {
-        opacity: 1,
-        y: 0,
-        delay: 0.3,
-        stagger: 0.1,
-      })
-  }, []);
+
+gsap.registerPlugin(Flip);
+
+
+
+const DraggableMenuItem = ({ item, itemRef }) => {
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+  } = useDraggable({
+    id: item.id,
+  });
+
+
+  const {
+    setNodeRef: setDropRef,
+  } = useDroppable({
+    id: item.id,
+  });
 
 
   return (
-    <main>
-      <h1 id="text" className="opacity-0 translate-y-10">
-        GsapText
-      </h1>
+    <button
+      ref={(node) => {
 
-      <p className="mt-5 text-gray-500 para">
-        We can use same method like <code>gsap.to()</code>,{" "}
-        <code>gsap.from()</code>, <code>gsap.fromTo()</code> and{" "}
-        <code>gsap.timeline()</code> to animate text.
-      </p>
+        setDragRef(node);
+        setDropRef(node);
 
-      <p className="mt-5 text-gray-500 para">
-        Using these methods we can achieve various text animations and effects
-        like fade in, fade out, slide in, slide out, and many more.
-      </p>
+        if (node) {
+          itemRef.current[item.id] = node;
+        }
 
-      <p className="mt-5 text-gray-500 para">
-        For more advanced text animations and effects, you can explore the GSAP
-        TextPlugin or other third-party libraries that specialize in text
-        animations.
-      </p>
-
-      <p className="mt-5 text-gray-500 para">
-        Read more about the{" "}
-        <a
-          href="https://greensock.com/docs/v3/Plugins/TextPlugin"
-          target="_blank"
-          rel="noreferrer noopener nofollow"
-        >
-          TextPlugin
-        </a>{" "}
-        plugin.
-      </p>
-    </main>
+      }}
+      {...listeners}
+      {...attributes}
+      className="
+        text-lg
+        font-bold
+        cursor-grab
+        bg-[#6b4f4f]
+        border-2
+        font-mono
+        border-white
+        border-dashed
+        text-gray-200
+        p-4
+        rounded-lg
+      "
+    >
+      {item.name}
+    </button>
   );
 };
 
-export default GsapText;
+
+
+DraggableMenuItem.propTypes = {
+  item: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  }).isRequired,
+
+  itemRef: PropTypes.object.isRequired,
+};
+
+
+
+
+
+const GsapItemOrder = () => {
+
+
+  const [items, setItems] = useState(menuItems);
+
+
+  const itemRefs = useRef({});
+
+
+
+  const handleDragEnd = (event) => {
+
+    const {
+      active,
+      over,
+    } = event;
+
+
+    if (!over) return;
+
+
+    if (active.id === over.id) return;
+
+
+
+    const oldIndex = items.findIndex(
+      (item) => item.id === active.id
+    );
+
+
+    const newIndex = items.findIndex(
+      (item) => item.id === over.id
+    );
+
+
+
+    const state = Flip.getState(
+      Object.values(itemRefs.current)
+    );
+
+
+
+    const updatedItems = [...items];
+
+
+
+    [
+      updatedItems[oldIndex],
+      updatedItems[newIndex],
+    ] = [
+      updatedItems[newIndex],
+      updatedItems[oldIndex],
+    ];
+
+
+
+    setItems(updatedItems);
+
+
+
+    requestAnimationFrame(() => {
+
+      Flip.from(state, {
+
+        duration: 0.6,
+
+        ease: "power3.inOut",
+
+      });
+
+    });
+
+
+  };
+
+
+
+
+  return (
+
+    <DndContext
+      onDragEnd={handleDragEnd}
+    >
+
+      <div
+        className="
+          min-h-screen
+          bg-black
+          p-10
+        "
+      >
+
+        <h1
+          className="
+            mb-8
+            text-4xl
+            font-bold
+            text-white
+          "
+        >
+          Menu Editor
+        </h1>
+
+
+
+        <div
+          className="
+            flex
+            justify-center
+            gap-4
+            text-white
+          "
+        >
+
+          {items.map((item) => (
+
+            <DraggableMenuItem
+
+              key={item.id}
+
+              item={item}
+
+              itemRef={itemRefs}
+
+            />
+
+          ))}
+
+
+        </div>
+
+
+      </div>
+
+
+    </DndContext>
+
+  );
+
+};
+
+
+
+export default GsapItemOrder;
